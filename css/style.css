@@ -1,5 +1,6 @@
 :root{font-family:'Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:#1b2e45;background:#f2f5f9;font-size:16px;--navy:#152843;--teal:#007c70;--line:#dde4ed}
 *{box-sizing:border-box}body{margin:0}
+[hidden]{display:none!important}
 button,input,select,textarea{font:inherit}
 button{cursor:pointer;border:1px solid #ccd6e2;background:white;color:#263c54;padding:10px 14px;border-radius:7px;font-size:.875rem;font-weight:600}
 button:hover{background:#eaf3f5}button:disabled{opacity:.4;cursor:default}
@@ -67,6 +68,29 @@ dialog::backdrop{background:#14284299}
 #finderCount{font-size:.875rem;color:#506780}#studentResults{max-height:52vh;overflow:auto}
 .backup-list{display:grid;gap:10px;margin-top:16px}.backup-list button{text-align:left}
 .backup-list small{display:block;font-weight:400;color:#64758a;margin-top:4px}
+.tools{display:flex;background:#eef2f7;border-radius:9px;padding:4px;gap:4px;margin-right:auto;margin-left:18px}
+.tools a{padding:8px 14px;border-radius:6px;font-size:.875rem;font-weight:700;color:#4d6078;text-decoration:none;white-space:nowrap}
+.tools a[aria-current]{background:white;color:var(--navy);box-shadow:0 1px 3px #15284322}
+.tools a:hover:not([aria-current]){color:var(--teal)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+.chip{padding:8px 13px;border-radius:20px;font-size:.8rem}
+.chip.active{background:var(--navy);color:white;border-color:var(--navy)}
+.item-grid{display:grid;grid-template-columns:1fr 1fr 150px 110px;gap:12px;margin-top:8px}
+.item-card h3{display:flex;gap:10px;align-items:baseline;margin:0 0 4px;font-size:1rem}
+.item-card h3 small{font-weight:400;color:#7b8899;font-size:.75rem}
+.item-card.flag{border-color:#e7c79a;background:#fffaf2}
+.badge{display:inline-block;padding:3px 8px;border-radius:5px;font-size:.72rem;font-weight:700;background:#fbe7cf;color:#8a4a17}
+.badge.keep{background:#e8f2f0;color:#00776c}
+.calc{font-size:.8rem;color:#00776c;margin-top:6px}
+.score{font-size:1.4rem;font-weight:800;color:var(--navy)}
+.issue.gold{border-left-color:#c79a2a}
+table.rep{border-collapse:collapse;width:100%;font-size:9.5pt;margin:8px 0}
+table.rep th,table.rep td{border:1px solid #bbb;padding:5px 7px;vertical-align:top;text-align:left;white-space:pre-wrap}
+table.rep th{background:#eee}
+table.rep .nw{white-space:nowrap;width:1%}
+@media(max-width:1150px){.tools{margin-left:0}}
+@media(max-width:900px){.item-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:720px){.tools{margin:0}.item-grid{grid-template-columns:1fr}}
 @media(min-width:1500px){.workspace{grid-template-columns:235px minmax(500px,1fr) 350px}main{padding:36px 45px}}
 @media(max-width:1150px){.workspace{grid-template-columns:185px minmax(320px,1fr)}.diagnosis{grid-column:2;border-top:1px solid var(--line)}main{padding:25px}.sidebar{grid-row:1/3}header{padding:18px}.brand small{max-width:210px;line-height:1.5}}
 @media(max-width:720px){header{align-items:flex-start;flex-direction:column}.workspace{display:block}.sidebar{min-height:0;padding:12px}.sidebar nav{display:flex;overflow-x:auto;margin:0;gap:7px}.nav-item{white-space:nowrap;flex-shrink:0}.sidebar .eyebrow,.side-note{display:none}main{padding:20px 14px}.heading{align-items:flex-start}h1{font-size:1.45rem}.stats{gap:7px}.stat{padding:12px}.stat span{font-size:.75rem}.editor,.practice{padding:18px}.fields{grid-template-columns:1fr}.field.wide{grid-column:auto}.diagnosis{padding:24px 15px}.mode select{min-width:105px}.actions button{padding:9px 10px}.student-tools{margin-bottom:14px}.account-bar{padding:12px 15px}.student-picker{color:white}}

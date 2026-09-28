@@ -12,6 +12,8 @@
 | `editions` | `id`, `title`, `student_limit`, `owner_id`, `created_at` |
 | `edition_members` | `edition_id`, `user_id`, `role`(`instructor` / `trainee`) |
 | `students` | `id`, `edition_id`, `user_id`, `number`, `record`(jsonb), `revision`, `updated_at` |
+| `analyses` | 대학 분석 보드 — `students`와 같은 구조 (`record`는 `js/univ-schema.js` 형식) |
+| `answer_keys` | (예정) 강사 정답 키 — `edition_id`, `university`, `year`, `key`(jsonb) |
 
 - `record`에는 `js/schema.js`의 기록 구조를 그대로 저장한다 (`version` 포함).
 - (`edition_id`, `user_id`, `number`) 유니크.

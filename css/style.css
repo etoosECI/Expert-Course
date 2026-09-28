@@ -72,6 +72,25 @@ dialog::backdrop{background:#14284299}
 .tools a{padding:8px 14px;border-radius:6px;font-size:.875rem;font-weight:700;color:#4d6078;text-decoration:none;white-space:nowrap}
 .tools a[aria-current]{background:white;color:var(--navy);box-shadow:0 1px 3px #15284322}
 .tools a:hover:not([aria-current]){color:var(--teal)}
+.linkbtn{display:inline-block;padding:9px 13px;border-radius:7px;background:var(--teal);color:white;font-size:.85rem;font-weight:700;text-decoration:none}
+.linkbtn:hover{background:#006458}
+.kvs{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin:16px 0}
+.kv{background:#f4f7fa;border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:.8rem;color:#617286;line-height:1.5}
+.kv b{display:block;color:#1b2e45;font-size:.9rem;margin-top:3px;white-space:pre-line;overflow-wrap:anywhere}.kv .big{font-size:1.35rem;color:var(--teal)}
+.toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:26px}.toolbar h3{margin:0}.toolbar small{font-weight:400;color:#7b8899}
+.toolbar select{width:auto;margin:0}
+.table-wrap{overflow-x:auto;margin-top:12px;border:1px solid var(--line);border-radius:8px}
+table.grid{border-collapse:collapse;width:100%;font-size:.8rem;background:white}
+table.grid th{background:#f1f5f9;color:#44576d;font-weight:700;padding:8px 6px;text-align:left;white-space:nowrap;position:sticky;top:0}
+table.grid td{border-top:1px solid var(--line);padding:4px 6px;vertical-align:middle}
+table.grid input,table.grid select{margin:0;padding:5px 6px;font-size:.8rem;min-width:52px}
+table.grid input.num{width:62px}table.grid td:nth-child(4) input{min-width:120px}
+table.grid td.ok b{color:#00776c}table.grid td.over b{color:#a4464d}
+button.sm{padding:5px 9px;font-size:.75rem}
+table.mx{border-collapse:collapse;width:100%;font-size:.72rem;background:white}
+table.mx th{background:#f1f5f9;padding:5px 4px;text-align:left;white-space:nowrap}table.mx td{border-top:1px solid var(--line);padding:5px 4px;white-space:nowrap}
+table.mx td:nth-child(2){max-width:118px;overflow:hidden;text-overflow:ellipsis}table.mx td.bad{color:#a4464d;font-weight:700}
+table.mx tr.pk{background:#fff6e5}table.mx tr.pk td:first-child{color:#c79a2a}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
 .chip{padding:8px 13px;border-radius:20px;font-size:.8rem}
 .chip.active{background:var(--navy);color:white;border-color:var(--navy)}

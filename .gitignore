@@ -1,4 +1,6 @@
 # 학생 데이터 백업 파일은 절대 커밋하지 않는다
 *.json
 !package.json
+!data/*.json
+node_modules/
 .DS_Store

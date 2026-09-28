@@ -1,5 +1,6 @@
 import { CONFIG } from './config.js';
 import { createStorage } from './storage/index.js';
+import { overall, MAIN_AREAS } from './courses.js';
 import { steps, candidateFields, riskFields, feedbackFields, routeRatings, field, blank, validateRecord, SCHEMA_VERSION } from './schema.js';
 
 const $ = s => document.querySelector(s);
@@ -68,6 +69,13 @@ function render() {
   $('#stepHelp').textContent = s.help;
   $('#fields').innerHTML = `<div class="fields">${s.fields.map(x => fieldHTML(x, data.values[x.id] || '', 'values.' + x.id)).join('')}</div>`;
   let extra = '';
+  if (current === 2) {
+    const n = data.courses.length, all = overall(data.courses), main = overall(data.courses, MAIN_AREAS), mocks = data.mocks.filter(m => m.name || m.kor || m.math).length;
+    const link = activeNumber ? `gyogwa.html?student=${activeNumber}` : null;
+    extra = `<div class="card"><div class="card-head"><h3>과목별 성적 (교과 지원판단 보드와 공유)</h3>${link ? `<a class="linkbtn" href="${link}">성적 입력·대학별 환산 →</a>` : ''}</div>
+      ${n ? `<p class="help">입력 과목 <b>${n}개</b> · 대표 내신(전 과목) <b>${all ?? '–'}</b> · 국영수사과 <b>${main ?? '–'}</b> · 모의고사 <b>${mocks}회</b></p><p class="help">대학별 환산 등급은 교과 지원판단 보드에서 확인하세요. 학교 내신과 대학 환산 등급은 다릅니다.</p>`
+        : `<p class="help">${link ? '아직 과목별 성적이 없습니다. 교과 지원판단 보드에서 엑셀·수기로 입력하면 여기에 요약이 표시됩니다.' : '학생을 먼저 <b>사례 저장</b>하면 교과 지원판단 보드에서 과목별 성적을 입력할 수 있습니다.'}</p>`}</div>`;
+  }
   if (current === 5) extra = data.routes.map((r, i) => `<div class="card"><h3>${r.name}</h3><div class="fields">${fieldHTML(field('rating', '적합도', 'select', true, routeRatings), r.rating, `routes.${i}.rating`)}${fieldHTML(field('reason', '판단 근거·보완 조건', 'textarea'), r.reason, `routes.${i}.reason`)}</div></div>`).join('');
   if (current === 6 || current === 7) {
     const key = current === 6 ? 'candidates' : 'risks', fs = current === 6 ? candidateFields : riskFields, label = current === 6 ? '지원 후보' : '확인사항';

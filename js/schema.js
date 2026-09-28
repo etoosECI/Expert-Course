@@ -1,6 +1,7 @@
 // 상담 기록의 구조(스키마). 1단계(브라우저 저장)와 2단계(Supabase)가 같은 구조를 공유한다.
 // 필드를 바꿀 때는 SCHEMA_VERSION을 올리고 migrateRecord()에 변환 규칙을 추가한다.
-export const SCHEMA_VERSION = 1;
+import { normalizeCourses, normalizeMocks, blankMock } from './courses.js';
+export const SCHEMA_VERSION = 2; // v2: 과목별 성적(courses)·모의고사(mocks) 추가 — 교과 지원판단 보드와 공유
 
 const f = (id, label, type = 'text', required = true, options = null, help = '') => ({ id, label, type, required, options, help });
 export { f as field };
@@ -72,13 +73,14 @@ export const modes = ['전문가 실습', '실제 상담'];
 export const blank = () => ({
   version: SCHEMA_VERSION, mode: '전문가 실습', values: {},
   routes: routes.map(name => ({ name, rating: '', reason: '' })),
-  candidates: [], risks: [], feedback: { self: '', coach: '', revision: '' }
+  candidates: [], risks: [], feedback: { self: '', coach: '', revision: '' },
+  courses: [], mocks: [blankMock(), blankMock(), blankMock()]
 });
 
 // 이전 버전 기록을 현재 버전으로 올린다. 버전이 바뀔 때마다 규칙을 여기에 추가.
 export function migrateRecord(o) {
   if (!o || typeof o !== 'object') throw Error('지원하지 않는 사례 파일입니다.');
-  // v1이 첫 버전이므로 아직 변환 규칙 없음.
+  if (o.version === 1) o = { ...o, version: 2, courses: [], mocks: undefined }; // v1 → v2: 성적·모의고사 칸 추가
   return o;
 }
 
@@ -106,5 +108,7 @@ export function validateRecord(input) {
       return item;
     });
   }
+  out.courses = normalizeCourses(o.courses);
+  out.mocks = normalizeMocks(o.mocks);
   return out;
 }

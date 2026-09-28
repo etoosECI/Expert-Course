@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>입시컨설팅 진단실 · Expert Course</title>
+<meta name="description" content="학생 사례부터 상담 설명까지, 근거를 기록하는 10단계 입시컨설팅 진단 대시보드">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23152843'/%3E%3Cpath d='M8 9h16M8 16h10M8 23h14' stroke='%235bdfb4' stroke-width='3'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header>
+  <div class="brand"><b class="mark">C</b><div><strong>입시컨설팅 진단실</strong><small>EXPERT COURSE / CONSULTING DIAGNOSTIC SHEET</small></div></div>
+  <div class="actions">
+    <button id="demo">실습 사례</button>
+    <button id="new">새 학생</button>
+    <button id="findStudents">저장 학생 찾기</button>
+    <button id="load">파일 불러오기</button>
+    <button id="save" class="primary">사례 저장</button>
+    <button id="backup">파일 백업</button>
+    <button id="backupAll">전체 백업</button>
+    <button id="print">상담지 인쇄</button>
+  </div>
+</header>
+<div id="accountBar" class="account-bar" role="status">저장 공간을 불러오는 중…</div>
+<div class="workspace">
+  <aside class="sidebar">
+    <label class="student-picker">저장된 학생<select id="studentList"><option value="">새 학생</option></select></label>
+    <div class="student-tools"><button id="reloadStudents">목록 갱신</button><button id="deleteStudent">학생 삭제</button></div>
+    <p class="eyebrow">CONSULTING WORKFLOW</p>
+    <nav id="nav" aria-label="상담 10단계"></nav>
+    <div class="side-note"><strong>판단보다 근거를 먼저.</strong><p>확인된 사실, 상담자의 해석, 추가 확인사항을 구분해 기록하세요.</p></div>
+  </aside>
+  <main>
+    <div class="heading">
+      <div><p class="eyebrow">01 / CASE WORKSPACE</p><h1 id="caseTitle">새 학생</h1><p id="caseSub">학생의 현재 위치를 파악하고, 다음 판단을 준비합니다.</p></div>
+      <label class="mode">사용 모드<select id="mode"><option>전문가 실습</option><option>실제 상담</option></select></label>
+    </div>
+    <div class="stats" id="stats"></div>
+    <div class="storage-note" id="storageNote"></div>
+    <section class="editor">
+      <div class="section-head"><div><span class="eyebrow" id="stepNumber"></span><h2 id="stepTitle"></h2></div><span class="tag" id="stageState"></span></div>
+      <p id="stepHelp" class="help"></p>
+      <div id="fields"></div>
+      <div id="extras"></div>
+      <div class="step-actions"><button id="prev">← 이전 단계</button><button class="primary" id="next">다음 단계 →</button></div>
+    </section>
+    <section class="practice" id="practice"><h3>실습 피드백</h3><p>교육생의 판단을 먼저 기록한 뒤, 근거와 설명 과정을 검토합니다.</p><div id="feedback"></div></section>
+  </main>
+  <aside class="diagnosis">
+    <div class="diagnosis-title"><span class="pulse"></span><h2>현재 진단</h2><span class="tag">실시간</span></div>
+    <p class="help">입력 완성도와 확인 과제를 점검합니다. 합격 가능성을 자동 산출하지 않습니다.</p>
+    <div id="diagnostics"></div>
+  </aside>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+<input id="file" type="file" accept="application/json,.json" hidden>
+<section id="report"></section>
+<dialog id="studentDialog" aria-labelledby="finderTitle">
+  <div class="finder-heading"><h2 id="finderTitle">저장 학생 찾기</h2><button id="closeFinder">닫기</button></div>
+  <label>사례번호 또는 학생 이름<input id="studentSearch" type="search" placeholder="예: 01 또는 홍길동" autocomplete="off"></label>
+  <p id="finderCount" role="status"></p>
+  <div id="studentResults"></div>
+</dialog>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

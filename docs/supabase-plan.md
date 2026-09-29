@@ -14,6 +14,7 @@
 | `students` | `id`, `edition_id`, `user_id`, `number`, `record`(jsonb), `revision`, `updated_at` |
 | `analyses` | 대학 분석 보드 — `students`와 같은 구조 (`record`는 `js/univ-schema.js` 형식) |
 | `gyogwa` | 교과 지원판단 — 같은 구조, `record.student.number`로 `students` 참조 |
+| `hakjong` | 학생부 정밀분석 — 원문(sections) 포함, **가장 민감한 데이터**: 교육생 본인만 읽기, 강사는 제출분만 |
 | `answer_keys` | (예정) 강사 정답 키 — `edition_id`, `university`, `year`, `key`(jsonb) |
 
 - `record`에는 `js/schema.js`의 기록 구조를 그대로 저장한다 (`version` 포함).

@@ -1,13 +1,13 @@
-import { CONFIG } from './config.js';
-import { createStorage } from './storage/index.js';
-import { validateRecord } from './schema.js';
-import { normalizeCourses } from './courses.js';
-import { mask, splitText, AREAS, AREA_LABEL, ADAPTERS } from './record-input.js';
-import { jinroProfiles, jinroProfile, jinroAvailable, schoolList, programList, schoolSubjects, programSubjects, jinroDiagnosis, JINRO_URL } from './jinro-link.js';
+import { CONFIG } from './config.js?v=3.0';
+import { createStorage } from './storage/index.js?v=3.0';
+import { validateRecord } from './schema.js?v=3.0';
+import { normalizeCourses } from './courses.js?v=3.0';
+import { mask, splitText, AREAS, AREA_LABEL, ADAPTERS } from './record-input.js?v=3.0';
+import { jinroProfiles, jinroProfile, jinroAvailable, schoolList, programList, schoolSubjects, programSubjects, jinroDiagnosis, JINRO_URL } from './jinro-link.js?v=3.0';
 import {
   HAKJONG_SCHEMA_VERSION, TAGS, TAG_NAMES, LEVELS, DEV, OFFERED, TAKEN, RUBRIC, RUBRIC_SCORES, FINAL,
   uid, blankSection, blankHakjong, validateHakjong
-} from './hakjong-schema.js';
+} from './hakjong-schema.js?v=3.0';
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));

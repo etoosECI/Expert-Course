@@ -1,6 +1,6 @@
 // 상담 기록의 구조(스키마). 1단계(브라우저 저장)와 2단계(Supabase)가 같은 구조를 공유한다.
 // 필드를 바꿀 때는 SCHEMA_VERSION을 올리고 migrateRecord()에 변환 규칙을 추가한다.
-import { normalizeCourses, normalizeMocks, blankMock } from './courses.js';
+import { normalizeCourses, normalizeMocks, blankMock } from './courses.js?v=3.0';
 export const SCHEMA_VERSION = 3; // v3: 상담 진단실을 4단계로 재구성 (진로설계 보드 연동 중심)
 
 /* 화면에서 뺀 예전 항목들.

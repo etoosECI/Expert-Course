@@ -1,9 +1,9 @@
-import { CONFIG } from './config.js';
-import { createStorage } from './storage/index.js';
-import { overall, MAIN_AREAS } from './courses.js';
-import { steps, riskFields, feedbackFields, field, blank, validateRecord, SCHEMA_VERSION } from './schema.js';
+import { CONFIG } from './config.js?v=3.0';
+import { createStorage } from './storage/index.js?v=3.0';
+import { overall, MAIN_AREAS } from './courses.js?v=3.0';
+import { steps, riskFields, feedbackFields, field, blank, validateRecord, SCHEMA_VERSION } from './schema.js?v=3.0';
 import { jinroProfiles, jinroProfile, jinroAvailable, schoolSubjects, programSubjects,
-  jinroDiagnosis, jinroGrades, gradeSummary, gradeCourses, jinroCourses, mapSchoolType, JINRO_URL } from './jinro-link.js';
+  jinroDiagnosis, jinroGrades, gradeSummary, gradeCourses, jinroCourses, mapSchoolType, JINRO_URL } from './jinro-link.js?v=3.0';
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -92,7 +92,9 @@ async function applyJinro(key) {
   dirty = true;
   J.note = `${report.filled.length}개 항목을 채웠습니다.`
     + (report.courses ? ` 과목 ${report.courses}개를 가져왔습니다.` : '')
-    + (report.skipped.length ? ` 이미 쓰신 ${report.skipped.length}개는 그대로 두었습니다.` : '');
+    + (report.skipped.length ? ` 이미 쓰신 ${report.skipped.length}개는 그대로 두었습니다.` : '')
+    + (J.grades.length ? '' : ' 이 설계에는 교과 성적이 없습니다 — 진로설계 보드 STEP 3에서 생기부를 넣고 진단을 실행하면 성적이 저장됩니다.')
+    + (p.studentName ? '' : ' 학생 이름도 비어 있습니다 — 진로설계 보드 ①에서 동의 후 입력하세요.');
   render(); toast(J.note);
 }
 

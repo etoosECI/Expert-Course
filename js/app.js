@@ -1,7 +1,9 @@
 import { CONFIG } from './config.js';
 import { createStorage } from './storage/index.js';
 import { overall, MAIN_AREAS } from './courses.js';
-import { steps, candidateFields, riskFields, feedbackFields, routeRatings, field, blank, validateRecord, SCHEMA_VERSION } from './schema.js';
+import { steps, riskFields, feedbackFields, field, blank, validateRecord, SCHEMA_VERSION } from './schema.js';
+import { jinroProfiles, jinroProfile, jinroAvailable, schoolSubjects, programSubjects,
+  jinroDiagnosis, jinroGrades, gradeSummary, gradeCourses, jinroCourses, mapSchoolType, JINRO_URL } from './jinro-link.js';
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -13,27 +15,186 @@ let data = blank(), current = 0, dirty = false;
 let saved = [], activeNumber = null, activeRevision = null, info = null, ready = false, busy = false;
 
 /* ---------- 진단 로직 ---------- */
+/* ---------- 진로설계(jinro-dash) 연결 ----------
+   옮기는 것은 "사실"뿐이다 — 이름·고교·희망 학과·편제·선택 과목·교과 성적,
+   그리고 자동 진단이 찾은 근거 '문장'. 역량 판단과 교과·학생부 판단은 옮기지 않는다. */
+const J = { ok: false, loading: true, picked: '', school: null, program: null,
+  grades: [], summary: null, diag: null, note: '' };
+
+async function initJinro() {
+  try { J.ok = await jinroAvailable(); } catch { J.ok = false; }
+  J.loading = false;
+  render();
+}
+const jinroList = () => jinroProfiles();
+const f2 = v => (v == null ? '–' : (Math.round(v * 100) / 100).toFixed(2));
+const gradeLine = g => !g ? '없음'
+  : `${g.subjectCount}과목 · 전 과목 ${f2(g.overallRank)}등급 · 5교과 ${f2(g.coreRank)}등급 · 이수단위 ${g.totalCredits}`
+    + (g.spread != null ? ` · 교과 간 격차 ${g.spread}등급 (강 ${g.strong.join('·')} / 약 ${g.weak.join('·')})` : '');
+
+function fillIfEmpty(id, text, report) {
+  if (!text) return;
+  if (filled(data.values[id])) { report.skipped.push(id); return; }
+  data.values[id] = text; report.filled.push(id);
+}
+
+async function applyJinro(key) {
+  const p = jinroProfile(key);
+  if (!p) { toast('그 설계를 찾지 못했습니다.'); return; }
+  const report = { filled: [], skipped: [], courses: 0 };
+  J.picked = key; J.school = null; J.program = null;
+
+  if (p.schoolPath) { try { J.school = await schoolSubjects(p.schoolPath, p.trackId || ''); } catch { J.school = null; } }
+  if (p.programId) { try { J.program = await programSubjects(p.programId); } catch { J.program = null; } }
+  J.diag = jinroDiagnosis(p);
+  J.grades = jinroGrades(p);
+  J.summary = gradeSummary(J.grades);
+  const track = J.school && (J.school.tracks || []).find(t => t.id === p.trackId);
+
+  // 학생 이름 — 진로설계 보드에서 동의 후 입력한 값
+  if (p.studentName && !filled(data.values.studentName)) { data.values.studentName = p.studentName; report.filled.push('studentName'); }
+  else if (p.studentName) report.skipped.push('studentName');
+
+  const st = mapSchoolType(J.school && J.school.schoolType);
+  if (st && !filled(data.values.school)) { data.values.school = st; report.filled.push('school'); }
+  else if (st) report.skipped.push('school');
+
+  if (J.program) fillIfEmpty('studentGoal', `희망 학과: ${J.program.name}\n(진로설계 보드에서 선택 · 대학은 상담에서 정함)`, report);
+
+  if (J.school) {
+    const picked = [...new Set([...(p.takenSubjects || []), ...(p.chosenSubjects || []), ...(p.manualSubjects || [])])].filter(Boolean);
+    const lines = [
+      `학교: ${J.school.name}${J.school.schoolType ? ` (${J.school.schoolType})` : ''}${track ? ` · ${track.label}` : ''}`,
+      `개설 ${(J.school.subjects || []).length}과목 · 설계에서 고른 과목 ${picked.length}개`,
+      picked.length ? picked.join(', ') : '',
+    ].filter(Boolean);
+    if (J.program) {
+      const core = J.program.core || [], have = new Set(picked);
+      const miss = core.filter(x => !have.has(x));
+      lines.push(`${J.program.name} 핵심 과목 ${core.length}개 중 ${core.length - miss.length}개 선택` + (miss.length ? ` · 빠진 과목: ${miss.join(', ')}` : ''));
+    }
+    fillIfEmpty('curriculum', lines.join('\n') + '\n— 위는 불러온 사실입니다. 선택의 이유와 맥락을 덧붙이세요.', report);
+  }
+
+  fillIfEmpty('materials', [
+    J.school ? `교육과정 편제표: 진로설계 보드 연결 (${J.school.name})` : '교육과정 편제표: 미연결',
+    J.grades.length ? `교과 성적: ${J.grades.length}과목 (생기부에서 읽음, ${p.grades?.at || '시점 미기재'})` : '교과 성적: 미입력',
+    J.diag ? `학생부 자동 진단: 있음 (${J.diag.at || '시점 미기재'}, 키워드 기반)` : '학생부 자동 진단: 없음',
+    p.entryGrade ? `진로설계 기준: ${p.entryGrade}학년 진입 (학년/졸업 상태는 직접 확인)` : '',
+  ].filter(Boolean).join('\n'), report);
+
+  // 교과 성적 → courses (교과 지원판단 보드가 그대로 씁니다)
+  const src = J.grades.length ? gradeCourses(J.grades) : (J.school ? jinroCourses(p, J.school) : []);
+  const have = new Set(data.courses.map(c => `${c.name}|${c.year}|${c.semester}`));
+  const add = src.filter(c => !have.has(`${c.name}|${c.year}|${c.semester}`));
+  if (add.length) { data.courses = data.courses.concat(add); report.courses = add.length; }
+
+  dirty = true;
+  J.note = `${report.filled.length}개 항목을 채웠습니다.`
+    + (report.courses ? ` 과목 ${report.courses}개를 가져왔습니다.` : '')
+    + (report.skipped.length ? ` 이미 쓰신 ${report.skipped.length}개는 그대로 두었습니다.` : '');
+  render(); toast(J.note);
+}
+
+function jinroImportCard() {
+  const list = jinroList();
+  const opts = list.map(p => {
+    const label = [p.studentName || '이름 미입력', p.studentKey, p.schoolName || '학교 미선택'].filter(Boolean).join(' · ');
+    return `<option value="${esc(p.studentKey)}" ${J.picked === p.studentKey ? 'selected' : ''}>${esc(label)}</option>`;
+  }).join('');
+  return `<div class="card jinro"><div class="card-head"><h3>진로설계에서 학생 불러오기 <small>고교 진로·선택과목 설계</small></h3>
+      <a class="linkbtn ghostlink" href="${JINRO_URL}" target="_blank" rel="noopener">진로설계 열기 ↗</a></div>
+    <p class="help">학생 등록은 <b>진로설계 보드에서 시작</b>합니다. 거기서 저장한 학생을 여기서 골라 불러오세요.
+      <b>이름 · 고교 유형 · 희망 학과 · 교육편제와 선택 과목 · 교과 성적</b>이 넘어옵니다.
+      상담일·상담자·학생 배경은 상담에서 직접 쓰는 칸이라 비워 둡니다. 이미 쓰신 칸도 덮지 않습니다.</p>
+    <div class="fields"><label class="field wide">저장된 학생
+      <select data-jinro-pick="1"><option value="">선택하세요</option>${opts}</select>
+      ${list.length ? '' : '<small>이 브라우저에 저장된 진로설계가 없습니다. 진로설계 보드에서 학생을 먼저 저장하세요.</small>'}</label></div>
+    ${J.note ? `<p class="help"><b>${esc(J.note)}</b></p>` : ''}
+    ${J.loading ? '<p class="help">진로설계 데이터를 확인하는 중…</p>'
+      : (J.ok ? '' : '<p class="help">진로설계 데이터 파일에 연결하지 못했습니다. 두 보드가 같은 사이트에 올라가 있어야 편제·학과 과목을 읽습니다.</p>')}</div>`;
+}
+
+/* STEP 2 — 교과 경쟁력: 학기별 평균 등급·원점수, 교과 간 편차, 우수·미흡, 이수단위 */
+function jinroGradeCard() {
+  const g = J.summary;
+  if (!g) return `<div class="card jinro"><div class="card-head"><h3>교과 성적 <small>진로설계 보드에서 불러옵니다</small></h3></div>
+    <p class="help">아직 불러온 성적이 없습니다. STEP 01에서 학생을 불러오세요.
+      진로설계 보드 STEP 3에서 생기부를 넣으면 교과학습발달상황 표를 읽어 성적이 저장됩니다.</p></div>`;
+  const AREAS = ['국어', '수학', '영어', '사회', '과학'];
+  const tag = a => g.strong.includes(a) ? '<span class="badge">우수</span>' : (g.weak.includes(a) ? '<span class="badge">보완</span>' : '');
+  const head = g.terms.map(t => `<th>${esc(t.replace('-', '학년 '))}학기</th>`).join('');
+  const body = AREAS.map(a => {
+    const b = g.byArea[a];
+    const cells = g.terms.map(t => {
+      const x = b.terms.find(y => y.term === t);
+      return `<td>${x && x.rank != null ? `${f2(x.rank)}<small> / ${x.raw == null ? '–' : f2(x.raw)}점</small>` : '–'}</td>`;
+    }).join('');
+    const share = g.coreCredits ? Math.round((b.credits / g.coreCredits) * 100) : 0;
+    return `<tr><th>${a} ${tag(a)}</th><td><b>${f2(b.rank)}</b></td><td>${f2(b.raw)}</td>
+      <td>${b.credits}<small> (${share}%)</small></td>${cells}</tr>`;
+  }).join('');
+  return `<div class="card jinro"><div class="card-head"><h3>불러온 교과 성적 <small>진로설계 보드 · 생기부에서 읽음</small></h3></div>
+    <p class="help">${esc(gradeLine(g))}</p>
+    <div style="overflow:auto"><table class="kvs"><thead><tr><th>교과</th><th>평균 등급</th><th>평균 원점수</th><th>이수단위</th>${head}</tr></thead>
+      <tbody>${body}</tbody></table></div>
+    <p class="help">칸 안은 <b>평균 등급 / 평균 원점수</b>입니다. 이수단위 옆 %는 5교과 안에서의 비중입니다.
+      ${g.spread != null ? `교과 간 격차가 <b>${g.spread}등급</b>입니다 — 강한 교과 ${esc(g.strong.join('·'))}, 보완할 교과 ${esc(g.weak.join('·'))}.` : ''}
+      이 숫자는 불러온 사실이고, 아래 칸의 <b>판단</b>은 상담자가 씁니다.</p></div>`;
+}
+
+/* STEP 3 — 학생부 경쟁력: 편제 / 학업역량(성적) / 진로·공동체(생기부 근거) */
+function jinroRecordCards() {
+  if (!J.picked) return `<div class="card jinro"><div class="card-head"><h3>진로설계 자료 <small>불러오면 여기에 표시됩니다</small></h3></div>
+    <p class="help">STEP 01에서 학생을 불러오면 편제·선택 과목, 교과 성적, 학생부 자동 진단 근거가 이 자리에 나옵니다.</p></div>`;
+  const g = J.summary;
+  const sub = J.school ? (J.school.subjects || []) : [];
+  const byCat = {}; sub.forEach(x => { byCat[x.category] = (byCat[x.category] || 0) + 1; });
+
+  const axis = name => {
+    const a = (J.diag && (J.diag.axes || []).find(x => String(x.key).includes(name))) || null;
+    if (!a) return '<p class="empty">연결된 설계에 자동 진단 결과가 없습니다. 진로설계 보드 STEP 3에서 생기부를 넣고 진단을 실행하세요.</p>';
+    const ev = (a.ev || []).slice(0, 6).map(t => `<li>${esc(t)}</li>`).join('');
+    const gap = (a.gap || []).slice(0, 4).map(t => `<li>${esc(t)}</li>`).join('');
+    return `<p class="help">자동 판정 <b>${esc(a.level || '-')}</b></p>`
+      + (ev ? `<p class="help">기록에서 찾은 근거</p><ul>${ev}</ul>` : '<p class="empty">근거 문장을 찾지 못했습니다.</p>')
+      + (gap ? `<p class="help">비어 보이는 부분</p><ul>${gap}</ul>` : '');
+  };
+
+  return `<div class="card jinro"><div class="card-head"><h3>교육편제 · 선택 과목 <small>진로설계 보드에서 자동</small></h3></div>
+      ${J.school ? `<p class="help"><b>${esc(J.school.name)}</b> · 개설 ${sub.length}과목
+        (${esc(Object.entries(byCat).map(([k, v]) => `${k} ${v}`).join(' · '))})</p>` : '<p class="empty">학교 편제를 불러오지 못했습니다.</p>'}
+      ${J.program ? `<p class="help">희망 <b>${esc(J.program.name)}</b> · 핵심 ${(J.program.core || []).length}과목 / 권장 ${(J.program.recommended || []).length}과목</p>` : ''}
+      <p class="help">아래 <b>교육편제·과목 선택에 대한 기록</b> 칸에 선택의 이유와 맥락을 쓰세요.</p></div>
+
+    <div class="card jinro"><div class="card-head"><h3>학업 역량 — 불러온 성적 <small>국·수·영·사·과</small></h3></div>
+      ${g ? `<p class="help">${esc(gradeLine(g))}</p>
+        <table class="kvs"><tbody>${['국어','수학','영어','사회','과학'].map(a => {
+          const b = g.byArea[a];
+          return `<tr><th>${a}</th><td>평균 ${f2(b.rank)}등급 · 원점수 ${f2(b.raw)} · ${b.credits}단위 · ${b.subjects}과목</td></tr>`;
+        }).join('')}</tbody></table>`
+        : '<p class="empty">불러온 성적이 없습니다.</p>'}
+      <p class="help">아래 <b>학업 역량 근거</b> 칸에 이 숫자를 어떻게 읽었는지 쓰세요.</p></div>
+
+    <div class="card jinro"><div class="card-head"><h3>진로·전공 탐색 — 생기부에서 찾은 근거 <small>키워드 기반 · 사람의 판단이 아닙니다</small></h3></div>
+      ${axis('진로')}<p class="help">아래 <b>진로·전공 탐색 근거</b> 칸에 상담자의 평가를 쓰세요.</p></div>
+
+    <div class="card jinro"><div class="card-head"><h3>공동체 역량 — 생기부에서 찾은 근거 <small>키워드 기반</small></h3></div>
+      ${axis('공동체')}<p class="help">아래 <b>공동체 역량 근거</b> 칸에 상담자의 평가를 쓰세요.</p></div>`;
+}
+
 function missing() {
   const list = [];
   steps.forEach((s, i) => s.fields.filter(x => x.required && !filled(data.values[x.id])).forEach(x => list.push({ step: i, label: x.label })));
-  data.routes.forEach(r => { if (!filled(r.rating) || !filled(r.reason)) list.push({ step: 5, label: r.name + ' 적합도·근거' }); });
-  if (!data.candidates.length) list.push({ step: 6, label: '대학·학과 후보 1개 이상' });
-  data.candidates.forEach((c, i) => candidateFields.filter(x => x.required && !filled(c[x.id])).forEach(x => list.push({ step: 6, label: `후보 ${i + 1} · ${x.label}` })));
-  data.risks.forEach((r, i) => riskFields.filter(x => x.required && !filled(r[x.id])).forEach(x => list.push({ step: 7, label: `확인사항 ${i + 1} · ${x.label}` })));
+  data.risks.forEach((r, i) => riskFields.filter(x => x.required && !filled(r[x.id])).forEach(x => list.push({ step: 3, label: `확인사항 ${i + 1} · ${x.label}` })));
   return list;
 }
 function warnings() {
-  const a = [], okMin = ['없음', '충족 전망'];
-  if (data.values.agreement && data.values.agreement !== '합의') a.push({ step: 1, label: '학생·학부모 목표 합의 필요' });
-  data.candidates.forEach((c, i) => {
-    const name = c.university || `후보 ${i + 1}`;
-    if (c.eligibility !== '충족 확인') a.push({ step: 6, label: `${name} · 지원자격 ${c.eligibility || '미확인'}` });
-    if (!okMin.includes(c.minimum)) a.push({ step: 6, label: `${name} · 수능최저 ${c.minimum || '미확인'}` });
-    if (!c.source || !c.checked) a.push({ step: 6, label: `${name} · 출처 / 확인일 누락` });
-    if (c.category === '안정' && (!c.reason || c.eligibility !== '충족 확인' || !okMin.includes(c.minimum))) a.push({ step: 6, label: `${name} · 안정 분류 재검토` });
-  });
-  if (data.candidates.length && data.candidates.every(c => c.category === '도전')) a.push({ step: 8, label: '모든 후보가 도전으로 분류됨' });
-  data.risks.filter(r => r.status !== '해결').forEach(r => a.push({ step: 7, label: `${r.title || '제목 없는 리스크'} · ${r.severity || '중요도 미정'}` }));
+  const a = [];
+  data.risks.filter(r => r.status !== '해결').forEach(r => a.push({ step: 3, label: `${r.title || '제목 없는 리스크'} · ${r.severity || '중요도 미정'}` }));
+  const g = J.summary;
+  if (g && g.spread != null && g.spread >= 2) a.push({ step: 1, label: `교과 간 격차 ${g.spread}등급 — ${g.weak.join('·')} 보완 필요` });
+  if (g && !filled(data.values.academicJudgment)) a.push({ step: 1, label: '성적은 불러왔으나 교과 경쟁력 판단 미작성' });
   return a;
 }
 
@@ -68,20 +229,16 @@ function render() {
   $('#stepTitle').textContent = s.title;
   $('#stepHelp').textContent = s.help;
   $('#fields').innerHTML = `<div class="fields">${s.fields.map(x => fieldHTML(x, data.values[x.id] || '', 'values.' + x.id)).join('')}</div>`;
-  let extra = '';
-  if (current === 2) {
-    const n = data.courses.length, all = overall(data.courses), main = overall(data.courses, MAIN_AREAS), mocks = data.mocks.filter(m => m.name || m.kor || m.math).length;
-    const link = activeNumber ? `gyogwa.html?student=${activeNumber}` : null;
-    extra = `<div class="card"><div class="card-head"><h3>과목별 성적 (교과 지원판단 보드와 공유)</h3>${link ? `<a class="linkbtn" href="${link}">성적 입력·대학별 환산 →</a>` : ''}</div>
-      ${n ? `<p class="help">입력 과목 <b>${n}개</b> · 대표 내신(전 과목) <b>${all ?? '–'}</b> · 국영수사과 <b>${main ?? '–'}</b> · 모의고사 <b>${mocks}회</b></p><p class="help">대학별 환산 등급은 교과 지원판단 보드에서 확인하세요. 학교 내신과 대학 환산 등급은 다릅니다.</p>`
-        : `<p class="help">${link ? '아직 과목별 성적이 없습니다. 교과 지원판단 보드에서 엑셀·수기로 입력하면 여기에 요약이 표시됩니다.' : '학생을 먼저 <b>사례 저장</b>하면 교과 지원판단 보드에서 과목별 성적을 입력할 수 있습니다.'}</p>`}</div>`;
+  /* 불러온 '사실' 카드는 입력 칸 위(extrasTop)에, 반복 항목은 아래(extras)에 둔다 */
+  let top = '', extra = '';
+  if (current === 0) top = jinroImportCard();
+  if (current === 1) top = jinroGradeCard();
+  if (current === 2) top = jinroRecordCards();
+  if (current === 3) {
+    extra = data.risks.map((r, i) => `<div class="card"><div class="card-head"><h3>확인사항 ${i + 1}</h3><button class="remove" data-remove="risks.${i}">삭제</button></div><div class="fields">${riskFields.map(x => fieldHTML(x, r[x.id] || '', `risks.${i}.${x.id}`)).join('')}</div></div>`).join('')
+      + '<button class="add" data-add="risks">+ 리스크 / 확인사항 추가</button>';
   }
-  if (current === 5) extra = data.routes.map((r, i) => `<div class="card"><h3>${r.name}</h3><div class="fields">${fieldHTML(field('rating', '적합도', 'select', true, routeRatings), r.rating, `routes.${i}.rating`)}${fieldHTML(field('reason', '판단 근거·보완 조건', 'textarea'), r.reason, `routes.${i}.reason`)}</div></div>`).join('');
-  if (current === 6 || current === 7) {
-    const key = current === 6 ? 'candidates' : 'risks', fs = current === 6 ? candidateFields : riskFields, label = current === 6 ? '지원 후보' : '확인사항';
-    extra = data[key].map((r, i) => `<div class="card"><div class="card-head"><h3>${label} ${i + 1}</h3><button class="remove" data-remove="${key}.${i}">삭제</button></div><div class="fields">${fs.map(x => fieldHTML(x, r[x.id] || '', `${key}.${i}.${x.id}`)).join('')}</div></div>`).join('')
-      + `<button class="add" data-add="${key}">+ ${current === 6 ? '대학·학과 후보' : '리스크 / 확인사항'} 추가</button>`;
-  }
+  $('#extrasTop').innerHTML = top;
   $('#extras').innerHTML = extra;
   $('#mode').value = data.mode;
   $('#practice').hidden = data.mode !== '전문가 실습';
@@ -135,6 +292,13 @@ async function loadStudents() { saved = await storage.list(); updateList(); }
 /* ---------- 입력 이벤트 ---------- */
 function setPath(path, value) { const p = path.split('.'); let t = data; for (let i = 0; i < p.length - 1; i++) t = t[p[i]]; t[p.at(-1)] = value; dirty = true; }
 document.addEventListener('input', e => { if (e.target.dataset.path) { setPath(e.target.dataset.path, e.target.value); refresh(); } });
+/* select는 input이 아니라 change로 온다 */
+document.addEventListener('change', e => {
+  if (!e.target.dataset.jinroPick) return;
+  const key = e.target.value;
+  if (!key) { J.picked = ''; J.note = ''; J.summary = null; render(); return; }
+  applyJinro(key).catch(err => toast(err.message));
+});
 document.addEventListener('click', e => {
   const step = e.target.closest('[data-step]');
   if (step) { current = Number(step.dataset.step); render(); }
@@ -276,11 +440,8 @@ $('#demo').onclick = () => {
 function buildReport() {
   const rows = steps.map((s, i) => {
     let body = s.fields.map(x => `<dt>${esc(x.label)}</dt><dd>${esc(data.values[x.id] || '미작성')}</dd>`).join('');
-    if (i === 5) body += data.routes.map(r => `<dt>${r.name} · ${esc(r.rating || '미작성')}</dt><dd>${esc(r.reason || '근거 미작성')}</dd>`).join('');
-    if (i === 6 || i === 7) {
-      const k = i === 6 ? 'candidates' : 'risks', fs = i === 6 ? candidateFields : riskFields;
-      body += data[k].map((r, j) => `<h3>${i === 6 ? '후보' : '확인사항'} ${j + 1}</h3>${fs.map(x => `<dt>${x.label}</dt><dd>${esc(r[x.id] || '미작성')}</dd>`).join('')}`).join('') || '<p>등록 없음</p>';
-    }
+    if (i === 1 && J.summary) body += `<dt>불러온 교과 성적</dt><dd>${esc(gradeLine(J.summary))}</dd>`;
+    if (i === 3) body += data.risks.map((r, j) => `<h3>확인사항 ${j + 1}</h3>${riskFields.map(x => `<dt>${x.label}</dt><dd>${esc(r[x.id] || '미작성')}</dd>`).join('')}`).join('') || '<p>등록 없음</p>';
     return `<section><h2>${i + 1}. ${s.title}</h2><dl>${body}</dl></section>`;
   }).join('');
   const w = warnings();
@@ -295,6 +456,10 @@ window.addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); 
   try {
     info = await storage.init();
     await loadStudents(); ready = true; startBlank();
+    initJinro().then(() => {
+      const jk = new URLSearchParams(location.search).get('jinro');
+      if (jk && jinroProfile(jk)) applyJinro(jk).catch(err => toast(err.message));
+    });
   } catch (err) {
     $('#accountBar').textContent = '저장 공간을 열지 못했습니다: ' + err.message;
     toast(err.message);

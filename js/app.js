@@ -1,9 +1,10 @@
-import { CONFIG } from './config.js?v=3.1';
-import { createStorage } from './storage/index.js?v=3.1';
-import { overall, MAIN_AREAS } from './courses.js?v=3.1';
-import { steps, riskFields, feedbackFields, field, blank, validateRecord, SCHEMA_VERSION } from './schema.js?v=3.1';
+import { CONFIG } from './config.js?v=3.2';
+import { createStorage } from './storage/index.js?v=3.2';
+import { overall, MAIN_AREAS } from './courses.js?v=3.2';
+import { steps, riskFields, feedbackFields, field, blank, validateRecord, SCHEMA_VERSION } from './schema.js?v=3.2';
 import { jinroProfiles, jinroProfile, jinroAvailable, schoolSubjects, programSubjects,
-  jinroDiagnosis, jinroGrades, gradeSummary, gradeCourses, jinroCourses, mapSchoolType, JINRO_URL } from './jinro-link.js?v=3.1';
+  jinroDiagnosis, jinroGrades, gradeSummary, gradeCourses, jinroCourses, mapSchoolType, JINRO_URL } from './jinro-link.js?v=3.2';
+import { buildAnalysis, analysisHTML, headline } from './gyogwa-analysis.js?v=3.2';
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -19,7 +20,9 @@ let saved = [], activeNumber = null, activeRevision = null, info = null, ready =
    옮기는 것은 "사실"뿐이다 — 이름·고교·희망 학과·편제·선택 과목·교과 성적,
    그리고 자동 진단이 찾은 근거 '문장'. 역량 판단과 교과·학생부 판단은 옮기지 않는다. */
 const J = { ok: false, loading: true, picked: '', school: null, program: null,
-  grades: [], summary: null, diag: null, note: '' };
+  grades: [], summary: null, analysis: null, diag: null, note: '',
+  /* 교과 경쟁력 화면 상태 — 어느 탭, 어떤 값으로 볼지 */
+  view: { tab: '1', metric: 'rank' } };
 
 async function initJinro() {
   try { J.ok = await jinroAvailable(); } catch { J.ok = false; }
@@ -49,6 +52,8 @@ async function applyJinro(key) {
   J.diag = jinroDiagnosis(p);
   J.grades = jinroGrades(p);
   J.summary = gradeSummary(J.grades);
+  J.analysis = buildAnalysis(J.grades);
+  J.view = { tab: '1', metric: 'rank' };
   const track = J.school && (J.school.tracks || []).find(t => t.id === p.trackId);
 
   // 학생 이름 — 진로설계 보드에서 동의 후 입력한 값
@@ -120,30 +125,15 @@ function jinroImportCard() {
 
 /* STEP 2 — 교과 경쟁력: 학기별 평균 등급·원점수, 교과 간 편차, 우수·미흡, 이수단위 */
 function jinroGradeCard() {
-  const g = J.summary;
-  if (!g) return `<div class="card jinro"><div class="card-head"><h3>교과 성적 <small>진로설계 보드에서 불러옵니다</small></h3></div>
+  const a = J.analysis;
+  if (!a) return `<div class="card jinro"><div class="card-head"><h3>교과별 학업 경쟁력 분석 <small>진로설계 보드에서 불러옵니다</small></h3></div>
     <p class="help">아직 불러온 성적이 없습니다. STEP 01에서 학생을 불러오세요.
-      진로설계 보드 STEP 3에서 생기부를 넣으면 교과학습발달상황 표를 읽어 성적이 저장됩니다.</p></div>`;
-  const AREAS = ['국어', '수학', '영어', '사회', '과학'];
-  const tag = a => g.strong.includes(a) ? '<span class="badge">우수</span>' : (g.weak.includes(a) ? '<span class="badge">보완</span>' : '');
-  const head = g.terms.map(t => `<th>${esc(t.replace('-', '학년 '))}학기</th>`).join('');
-  const body = AREAS.map(a => {
-    const b = g.byArea[a];
-    const cells = g.terms.map(t => {
-      const x = b.terms.find(y => y.term === t);
-      return `<td>${x && x.rank != null ? `${f2(x.rank)}<small> / ${x.raw == null ? '–' : f2(x.raw)}점</small>` : '–'}</td>`;
-    }).join('');
-    const share = g.coreCredits ? Math.round((b.credits / g.coreCredits) * 100) : 0;
-    return `<tr><th>${a} ${tag(a)}</th><td><b>${f2(b.rank)}</b></td><td>${f2(b.raw)}</td>
-      <td>${b.credits}<small> (${share}%)</small></td>${cells}</tr>`;
-  }).join('');
-  return `<div class="card jinro"><div class="card-head"><h3>불러온 교과 성적 <small>진로설계 보드 · 생기부에서 읽음</small></h3></div>
-    <p class="help">${esc(gradeLine(g))}</p>
-    <div style="overflow:auto"><table class="kvs"><thead><tr><th>교과</th><th>평균 등급</th><th>평균 원점수</th><th>이수단위</th>${head}</tr></thead>
-      <tbody>${body}</tbody></table></div>
-    <p class="help">칸 안은 <b>평균 등급 / 평균 원점수</b>입니다. 이수단위 옆 %는 5교과 안에서의 비중입니다.
-      ${g.spread != null ? `교과 간 격차가 <b>${g.spread}등급</b>입니다 — 강한 교과 ${esc(g.strong.join('·'))}, 보완할 교과 ${esc(g.weak.join('·'))}.` : ''}
-      이 숫자는 불러온 사실이고, 아래 칸의 <b>판단</b>은 상담자가 씁니다.</p></div>`;
+      진로설계 보드 STEP 3에서 생기부를 넣으면 교과학습발달상황 표를 읽어 성적이 저장되고,
+      성적을 읽지 못했으면 그 화면에서 엑셀 양식으로 직접 넣을 수 있습니다.</p></div>`;
+  return `<div class="card jinro"><div class="card-head"><h3>교과별 학업 경쟁력 분석 <small>진로설계 보드 · 생기부에서 읽음</small></h3></div>
+    <p class="help">${esc(headline(a))}</p>
+    ${analysisHTML(a, J.view)}
+    <p class="help">위 숫자는 <b>불러온 사실</b>이고, 아래 칸의 <b>판단</b>은 상담자가 씁니다.</p></div>`;
 }
 
 /* STEP 3 — 학생부 경쟁력: 편제 / 학업역량(성적) / 진로·공동체(생기부 근거) */
@@ -299,10 +289,15 @@ document.addEventListener('input', e => { if (e.target.dataset.path) { setPath(e
 document.addEventListener('change', e => {
   if (!e.target.dataset.jinroPick) return;
   const key = e.target.value;
-  if (!key) { J.picked = ''; J.note = ''; J.summary = null; render(); return; }
+  if (!key) { J.picked = ''; J.note = ''; J.summary = null; J.analysis = null; render(); return; }
   applyJinro(key).catch(err => toast(err.message));
 });
 document.addEventListener('click', e => {
+  /* 교과 경쟁력 분석 — 탭과 보기 전환은 입력값을 건드리지 않으므로 그 카드만 다시 그린다 */
+  const gt = e.target.closest('[data-gtab]');
+  if (gt) { J.view.tab = gt.dataset.gtab; $('#extrasTop').innerHTML = jinroGradeCard(); return; }
+  const gm = e.target.closest('[data-gmetric]');
+  if (gm) { J.view.metric = gm.dataset.gmetric; $('#extrasTop').innerHTML = jinroGradeCard(); return; }
   const step = e.target.closest('[data-step]');
   if (step) { current = Number(step.dataset.step); render(); }
   const add = e.target.closest('[data-add]');

@@ -1,9 +1,9 @@
-import { CONFIG } from './config.js?v=3.1';
-import { createStorage } from './storage/index.js?v=3.1';
+import { CONFIG } from './config.js?v=3.2';
+import { createStorage } from './storage/index.js?v=3.2';
 import {
   UNIV_SCHEMA_VERSION, SOURCES, SOURCE_STATUS, ITEMS, CHANGE_TYPES, ROUTE_TYPES, DIRECTIONS, CUT_BASIS, CUT_POINT, CUT_METHOD,
   RESULT_SOURCE, RUBRIC, RUBRIC_SCORES, MAX_ROUTES, blankAnalysis, blankRoute, changeKey, isFlagged, validateAnalysis
-} from './univ-schema.js?v=3.1';
+} from './univ-schema.js?v=3.2';
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));

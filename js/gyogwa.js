@@ -1,12 +1,12 @@
-import { CONFIG } from './config.js?v=3.1';
-import { createStorage } from './storage/index.js?v=3.1';
-import { validateRecord } from './schema.js?v=3.1';
-import { AREAS, KINDS, ACH, MOCK_AREAS, emptyCourse, normalizeCourses, overall, MAIN_AREAS, parseXlsx, downloadTemplate, naeshinStudents } from './courses.js?v=3.1';
-import { calcRecord, buildConvMap, judgeGrade } from './vendor/naeshin-engine.js?v=3.1';
+import { CONFIG } from './config.js?v=3.2';
+import { createStorage } from './storage/index.js?v=3.2';
+import { validateRecord } from './schema.js?v=3.2';
+import { AREAS, KINDS, ACH, MOCK_AREAS, emptyCourse, normalizeCourses, overall, MAIN_AREAS, parseXlsx, downloadTemplate, naeshinStudents } from './courses.js?v=3.2';
+import { calcRecord, buildConvMap, judgeGrade } from './vendor/naeshin-engine.js?v=3.2';
 import {
   GYOGWA_SCHEMA_VERSION, MAX_CANDIDATES, PICKS, M1_CHECK, LEVELS, ELIG, JUDGE, RUBRIC, RUBRIC_SCORES,
   recKey, snapshot, blankCandidate, blankGyogwa, validateGyogwa
-} from './gyogwa-schema.js?v=3.1';
+} from './gyogwa-schema.js?v=3.2';
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));

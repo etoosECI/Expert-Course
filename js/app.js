@@ -1,9 +1,9 @@
-import { CONFIG } from './config.js?v=3.0';
-import { createStorage } from './storage/index.js?v=3.0';
-import { overall, MAIN_AREAS } from './courses.js?v=3.0';
-import { steps, riskFields, feedbackFields, field, blank, validateRecord, SCHEMA_VERSION } from './schema.js?v=3.0';
+import { CONFIG } from './config.js?v=3.1';
+import { createStorage } from './storage/index.js?v=3.1';
+import { overall, MAIN_AREAS } from './courses.js?v=3.1';
+import { steps, riskFields, feedbackFields, field, blank, validateRecord, SCHEMA_VERSION } from './schema.js?v=3.1';
 import { jinroProfiles, jinroProfile, jinroAvailable, schoolSubjects, programSubjects,
-  jinroDiagnosis, jinroGrades, gradeSummary, gradeCourses, jinroCourses, mapSchoolType, JINRO_URL } from './jinro-link.js?v=3.0';
+  jinroDiagnosis, jinroGrades, gradeSummary, gradeCourses, jinroCourses, mapSchoolType, JINRO_URL } from './jinro-link.js?v=3.1';
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -94,19 +94,20 @@ async function applyJinro(key) {
     + (report.courses ? ` 과목 ${report.courses}개를 가져왔습니다.` : '')
     + (report.skipped.length ? ` 이미 쓰신 ${report.skipped.length}개는 그대로 두었습니다.` : '')
     + (J.grades.length ? '' : ' 이 설계에는 교과 성적이 없습니다 — 진로설계 보드 STEP 3에서 생기부를 넣고 진단을 실행하면 성적이 저장됩니다.')
-    + (p.studentName ? '' : ' 학생 이름도 비어 있습니다 — 진로설계 보드 ①에서 동의 후 입력하세요.');
+    + (p.studentName ? '' : ' 학생 이름이 비어 있습니다 — 진로설계 보드 ①에서 동의 체크 후 이름을 넣어 주세요.');
   render(); toast(J.note);
 }
 
 function jinroImportCard() {
   const list = jinroList();
   const opts = list.map(p => {
-    const label = [p.studentName || '이름 미입력', p.studentKey, p.schoolName || '학교 미선택'].filter(Boolean).join(' · ');
+    const name = p.studentName || p.studentKey || '이름 미입력';
+    const label = [name, p.studentKey !== name ? p.studentKey : '', p.schoolName || '학교 미선택'].filter(Boolean).join(' · ');
     return `<option value="${esc(p.studentKey)}" ${J.picked === p.studentKey ? 'selected' : ''}>${esc(label)}</option>`;
   }).join('');
   return `<div class="card jinro"><div class="card-head"><h3>진로설계에서 학생 불러오기 <small>고교 진로·선택과목 설계</small></h3>
       <a class="linkbtn ghostlink" href="${JINRO_URL}" target="_blank" rel="noopener">진로설계 열기 ↗</a></div>
-    <p class="help">학생 등록은 <b>진로설계 보드에서 시작</b>합니다. 거기서 저장한 학생을 여기서 골라 불러오세요.
+    <p class="help">학생 등록은 <b>진로설계 보드에서 시작</b>합니다. 거기 명단에 저장한 학생을 여기서 골라 불러오세요.
       <b>이름 · 고교 유형 · 희망 학과 · 교육편제와 선택 과목 · 교과 성적</b>이 넘어옵니다.
       상담일·상담자·학생 배경은 상담에서 직접 쓰는 칸이라 비워 둡니다. 이미 쓰신 칸도 덮지 않습니다.</p>
     <div class="fields"><label class="field wide">저장된 학생

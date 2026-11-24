@@ -1,6 +1,6 @@
 // 학생부 정밀분석 보드(전문가 과정 4강) 기록 구조.
 // 학생 성적은 상담 진단실(students) 기록을, 학교 편제·학과 권장과목은 jinro-dash 데이터를 참조한다.
-import { AREAS } from './record-input.js?v=3.2';
+import { AREAS } from './record-input.js?v=3.3';
 export const HAKJONG_SCHEMA_VERSION = 1;
 
 export const TAGS = [['학업', '#2f6fb0'], ['진로', '#b0662f'], ['탐구', '#2f8f6a'], ['공동체', '#8a4fb0']];

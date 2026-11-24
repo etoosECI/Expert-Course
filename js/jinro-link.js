@@ -45,7 +45,22 @@ export async function programSubjects(programId) {
 // jinro-dash 자동 진단(키워드 기반) 요약 — 사람의 판단과 비교하는 참고 자료
 export function jinroDiagnosis(profile) {
   const d = profile?.record?.diagnosis; if (!d) return null;
-  return { at: d.at, axes: (d.axes || []).map(a => ({ key: a.key, level: a.level, ev: (a.ev || []).map(x => x.text), gap: (a.gap || []).map(x => x.text) })), gaps: (d.gaps || []).map(g => [g.label, g.why].filter(Boolean).join(' — ')).filter(Boolean) };
+  const ev = d.evidence || null;
+  return {
+    at: d.at,
+    axes: (d.axes || []).map(a => ({ key: a.key, level: a.level, ev: (a.ev || []).map(x => x.text), gap: (a.gap || []).map(x => x.text) })),
+    gaps: (d.gaps || []).map(g => [g.label, g.why].filter(Boolean).join(' — ')).filter(Boolean),
+    subjects: Object.keys(d.subjectNotes || {}),
+    /* 근거 모음 — 기록에 있는 문장 그대로. 독서활동상황·수상경력은 보드에서 이미 뺐다 */
+    evidence: ev ? {
+      books: (ev.books || []).map(b => ({ title: b.title, author: b.author || null, where: b.where, subject: b.subject || null })),
+      fit: (ev.fit || []).map(f => ({ text: f.text, where: f.where, subject: f.subject || null, hits: f.hits || [] })),
+      fitKeywords: ev.fitKeywords || [],
+      community: (ev.community || []).map(c => ({ text: c.text, where: c.where, subject: c.subject || null, hits: c.hits || [] })),
+      excluded: ev.excluded || null,
+      sources: ev.sources || [],
+    } : null,
+  };
 }
 
 /* ──────────────────────────────────────────────────────────────

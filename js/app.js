@@ -1,10 +1,10 @@
-import { CONFIG } from './config.js?v=3.2';
-import { createStorage } from './storage/index.js?v=3.2';
-import { overall, MAIN_AREAS } from './courses.js?v=3.2';
-import { steps, riskFields, feedbackFields, field, blank, validateRecord, SCHEMA_VERSION } from './schema.js?v=3.2';
+import { CONFIG } from './config.js?v=3.3';
+import { createStorage } from './storage/index.js?v=3.3';
+import { overall, MAIN_AREAS } from './courses.js?v=3.3';
+import { steps, riskFields, feedbackFields, field, blank, validateRecord, SCHEMA_VERSION } from './schema.js?v=3.3';
 import { jinroProfiles, jinroProfile, jinroAvailable, schoolSubjects, programSubjects,
-  jinroDiagnosis, jinroGrades, gradeSummary, gradeCourses, jinroCourses, mapSchoolType, JINRO_URL } from './jinro-link.js?v=3.2';
-import { buildAnalysis, analysisHTML, headline } from './gyogwa-analysis.js?v=3.2';
+  jinroDiagnosis, jinroGrades, gradeSummary, gradeCourses, jinroCourses, mapSchoolType, JINRO_URL } from './jinro-link.js?v=3.3';
+import { buildAnalysis, analysisHTML, headline } from './gyogwa-analysis.js?v=3.3';
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -136,44 +136,135 @@ function jinroGradeCard() {
     <p class="help">위 숫자는 <b>불러온 사실</b>이고, 아래 칸의 <b>판단</b>은 상담자가 씁니다.</p></div>`;
 }
 
-/* STEP 3 — 학생부 경쟁력: 편제 / 학업역량(성적) / 진로·공동체(생기부 근거) */
-function jinroRecordCards() {
-  if (!J.picked) return `<div class="card jinro"><div class="card-head"><h3>진로설계 자료 <small>불러오면 여기에 표시됩니다</small></h3></div>
-    <p class="help">STEP 01에서 학생을 불러오면 편제·선택 과목, 교과 성적, 학생부 자동 진단 근거가 이 자리에 나옵니다.</p></div>`;
+/* STEP 3 — 학생부 경쟁력
+   항목마다 [표/근거] → [자동 분석] → [바로 아래 작성 칸] 순서로 둔다.
+   자동 분석은 기록에 있는 문장에서 뽑은 것이고, 판단은 상담자가 쓴다. */
+
+/* 받침에 따라 '과/와'를 고른다 — '의예과과 겹치는'이 되지 않게 */
+function withP(word) {
+  const w = String(word || '');
+  const last = w.charCodeAt(w.length - 1);
+  if (!(last >= 0xac00 && last <= 0xd7a3)) return w + '과';
+  return w + ((last - 0xac00) % 28 ? '과' : '와');
+}
+const LEVEL_KO = { hi: '근거 충분', mid: '보통', lo: '근거 부족' };
+
+function writeBox(id) {
+  const fd = (steps[2].fields || []).find(x => x.id === id);
+  if (!fd) return '';
+  return `<div class="writein">${fieldHTML(fd, data.values[id] || '', 'values.' + id)}</div>`;
+}
+const noEv = t => `<p class="empty">${t}</p>`;
+
+/* ① 학업 역량 — 불러온 성적 표 */
+function learningCard() {
+  const a = J.analysis;
   const g = J.summary;
+  let tableHTML = noEv('불러온 성적이 없습니다. 진로설계 보드 STEP 3에서 생기부를 넣거나 엑셀 양식으로 성적을 채운 뒤 다시 불러오세요.');
+  if (a) {
+    const head = a.terms.map(t => `<th>${t[0]}학년 ${t.slice(2)}학기</th>`).join('');
+    const body = ['국어', '영어', '수학', '사회', '과학'].filter(x => a.areas.includes(x)).map(x => {
+      const all = a.cells.all[x];
+      const cells = a.terms.map(t => {
+        const c = a.cells[t][x];
+        return `<td>${c.rank == null ? '–' : f2(c.rank)}${c.raw == null ? '' : `<small>${c.raw.toFixed(1)}점</small>`}</td>`;
+      }).join('');
+      return `<tr><th>${x}</th><td><b>${f2(all.rank)}</b></td><td>${all.raw == null ? '–' : all.raw.toFixed(1)}</td>
+        <td>${all.credits || '–'}<small>${all.subjects}과목</small></td>${cells}</tr>`;
+    }).join('');
+    const foot = `<tr class="all"><th>주요 교과</th><td><b>${f2(a.core.rank)}</b></td>
+      <td>${a.core.raw == null ? '–' : a.core.raw.toFixed(1)}</td><td>${a.core.credits || '–'}</td>
+      ${a.terms.map(t => `<td>${a.cells[t]._core.rank == null ? '–' : f2(a.cells[t]._core.rank)}</td>`).join('')}</tr>`;
+    tableHTML = `<div class="table-wrap"><table class="gtable"><thead><tr>
+        <th>교과</th><th>평균<br>등급</th><th>평균<br>원점수</th><th>이수단위</th>${head}</tr></thead>
+      <tbody>${body}${foot}</tbody></table></div>
+      <p class="help">칸 안 작은 숫자는 그 학기의 <b>평균 원점수</b>입니다. 학기별·과목별 전체는 STEP 02에서 봅니다.</p>`;
+  }
+  const axis = axisBlock('학업');
+  return `<div class="card jinro"><div class="card-head"><h3>학업 역량 <small>불러온 성적 · 국·영·수·사·과</small></h3></div>
+    ${g ? `<p class="help">${esc(gradeLine(g))}</p>` : ''}
+    ${tableHTML}
+    ${axis}
+    ${writeBox('learning')}</div>`;
+}
+
+/* 자동 진단 축의 근거·보완 문장 */
+function axisBlock(name) {
+  const a = (J.diag && (J.diag.axes || []).find(x => String(x.key).includes(name))) || null;
+  if (!a) return `<div class="autobox">${noEv('연결된 설계에 자동 진단 결과가 없습니다. 진로설계 보드 STEP 3에서 생기부를 넣고 진단을 실행하세요.')}</div>`;
+  const ev = (a.ev || []).slice(0, 6).map(t => `<li>${esc(t)}</li>`).join('');
+  const gap = (a.gap || []).slice(0, 4).map(t => `<li>${esc(t)}</li>`).join('');
+  return `<div class="autobox"><h4>자동 분석 <span class="lv">${esc(LEVEL_KO[a.level] || a.level || '-')}</span></h4>
+    ${ev ? `<p class="help">기록에서 찾은 근거</p><ul>${ev}</ul>` : noEv('근거 문장을 찾지 못했습니다.')}
+    ${gap ? `<p class="help">비어 보이는 부분</p><ul>${gap}</ul>` : ''}
+    <p class="note">키워드로 찾은 것입니다. 사람의 판단이 아닙니다.</p></div>`;
+}
+
+/* ② 진로·전공 탐색 */
+function careerCard() {
+  const e = J.diag && J.diag.evidence;
+  const prog = J.program ? J.program.name : '';
+  let fit = noEv('연결된 설계에 자동 진단 결과가 없습니다.');
+  let books = '';
+  let excl = '';
+  if (e) {
+    fit = (e.fit || []).length
+      ? `<table class="gtable ev"><thead><tr><th>어디</th><th>걸린 말</th><th>기록된 문장</th></tr></thead><tbody>${
+          e.fit.slice(0, 6).map(f => `<tr><th>${esc(f.where)}${f.subject ? `<small>${esc(f.subject)}</small>` : ''}</th>
+            <td class="kw">${f.hits.map(h => `<span>${esc(h)}</span>`).join('')}</td>
+            <td class="q">${esc(f.text)}</td></tr>`).join('')}</tbody></table>`
+      : noEv(`창의적 체험활동·세특에서 ${esc(withP(prog || '희망 계열'))} 겹치는 서술을 찾지 못했습니다. 기록을 더 넣거나, 탐구 주제를 진로 쪽으로 좁혀야 합니다.`);
+    books = (e.books || []).length
+      ? `<table class="gtable ev"><thead><tr><th>도서</th><th>저자</th><th>어디에 적혔나</th></tr></thead><tbody>${
+          e.books.map(b => `<tr><th>${esc(b.title)}</th><td>${esc(b.author || '–')}</td>
+            <td>${esc(b.where)}${b.subject ? ` · ${esc(b.subject)}` : ''}</td></tr>`).join('')}</tbody></table>`
+      : noEv('창의적 체험활동·세특 서술 안에서 책이 확인되지 않습니다. 활동 기록 안에 읽은 책과 그 책이 탐구를 어떻게 바꿨는지가 함께 적혀야 읽힙니다.');
+    const x = e.excluded;
+    excl = x ? `<p class="note">독서활동상황 ${x.reading}건, 수상경력 ${x.award}건은 근거에서 <b>제외</b>했습니다 — 대입에 반영되지 않는 항목입니다.</p>` : '';
+  }
+  return `<div class="card jinro"><div class="card-head"><h3>진로·전공 탐색 <small>창의적 체험활동 · 세특에서만</small></h3></div>
+    <p class="help">① ${esc(withP(prog || '희망 계열'))} 겹치는 서술 <span class="note">— 창의적 체험활동·세특 기록만 봅니다</span></p>
+    ${fit}
+    <p class="help" style="margin-top:14px">② 활동 안에서 읽은 책</p>
+    ${books}
+    ${excl}
+    ${axisBlock('진로')}
+    ${writeBox('career')}</div>`;
+}
+
+/* ③ 공동체 역량 — 대표 서술 셋 */
+function communityCard() {
+  const e = J.diag && J.diag.evidence;
+  const list = (e && e.community) || [];
+  const body = list.length
+    ? `<ol class="rep">${list.map(c => `<li><div class="where">${esc(c.where)}${c.subject ? ` · ${esc(c.subject)}` : ''}
+         ${c.hits.map(h => `<span class="kw1">${esc(h)}</span>`).join('')}</div>
+         <p class="q">${esc(c.text)}</p></li>`).join('')}</ol>`
+    : noEv('협업·나눔·리더십에 해당하는 서술을 찾지 못했습니다. 모둠 탐구·발표·또래 멘토링이 기록에 남아야 읽힙니다.');
+  return `<div class="card jinro"><div class="card-head"><h3>공동체 역량 <small>대표 서술 ${list.length}건</small></h3></div>
+    ${body}
+    ${axisBlock('공동체')}
+    ${writeBox('community')}</div>`;
+}
+
+/* ④ 교육편제 · 선택 과목 */
+function curriculumCard() {
   const sub = J.school ? (J.school.subjects || []) : [];
   const byCat = {}; sub.forEach(x => { byCat[x.category] = (byCat[x.category] || 0) + 1; });
-
-  const axis = name => {
-    const a = (J.diag && (J.diag.axes || []).find(x => String(x.key).includes(name))) || null;
-    if (!a) return '<p class="empty">연결된 설계에 자동 진단 결과가 없습니다. 진로설계 보드 STEP 3에서 생기부를 넣고 진단을 실행하세요.</p>';
-    const ev = (a.ev || []).slice(0, 6).map(t => `<li>${esc(t)}</li>`).join('');
-    const gap = (a.gap || []).slice(0, 4).map(t => `<li>${esc(t)}</li>`).join('');
-    return `<p class="help">자동 판정 <b>${esc(a.level || '-')}</b></p>`
-      + (ev ? `<p class="help">기록에서 찾은 근거</p><ul>${ev}</ul>` : '<p class="empty">근거 문장을 찾지 못했습니다.</p>')
-      + (gap ? `<p class="help">비어 보이는 부분</p><ul>${gap}</ul>` : '');
-  };
-
   return `<div class="card jinro"><div class="card-head"><h3>교육편제 · 선택 과목 <small>진로설계 보드에서 자동</small></h3></div>
-      ${J.school ? `<p class="help"><b>${esc(J.school.name)}</b> · 개설 ${sub.length}과목
-        (${esc(Object.entries(byCat).map(([k, v]) => `${k} ${v}`).join(' · '))})</p>` : '<p class="empty">학교 편제를 불러오지 못했습니다.</p>'}
-      ${J.program ? `<p class="help">희망 <b>${esc(J.program.name)}</b> · 핵심 ${(J.program.core || []).length}과목 / 권장 ${(J.program.recommended || []).length}과목</p>` : ''}
-      <p class="help">아래 <b>교육편제·과목 선택에 대한 기록</b> 칸에 선택의 이유와 맥락을 쓰세요.</p></div>
+    ${J.school ? `<p class="help"><b>${esc(J.school.name)}</b> · 개설 ${sub.length}과목
+      (${esc(Object.entries(byCat).map(([k, v]) => `${k} ${v}`).join(' · '))})</p>` : noEv('학교 편제를 불러오지 못했습니다.')}
+    ${J.program ? `<p class="help">희망 <b>${esc(J.program.name)}</b> · 핵심 ${(J.program.core || []).length}과목 / 권장 ${(J.program.recommended || []).length}과목</p>` : ''}
+    ${writeBox('curriculum')}</div>`;
+}
 
-    <div class="card jinro"><div class="card-head"><h3>학업 역량 — 불러온 성적 <small>국·수·영·사·과</small></h3></div>
-      ${g ? `<p class="help">${esc(gradeLine(g))}</p>
-        <table class="kvs"><tbody>${['국어','수학','영어','사회','과학'].map(a => {
-          const b = g.byArea[a];
-          return `<tr><th>${a}</th><td>평균 ${f2(b.rank)}등급 · 원점수 ${f2(b.raw)} · ${b.credits}단위 · ${b.subjects}과목</td></tr>`;
-        }).join('')}</tbody></table>`
-        : '<p class="empty">불러온 성적이 없습니다.</p>'}
-      <p class="help">아래 <b>학업 역량 근거</b> 칸에 이 숫자를 어떻게 읽었는지 쓰세요.</p></div>
-
-    <div class="card jinro"><div class="card-head"><h3>진로·전공 탐색 — 생기부에서 찾은 근거 <small>키워드 기반 · 사람의 판단이 아닙니다</small></h3></div>
-      ${axis('진로')}<p class="help">아래 <b>진로·전공 탐색 근거</b> 칸에 상담자의 평가를 쓰세요.</p></div>
-
-    <div class="card jinro"><div class="card-head"><h3>공동체 역량 — 생기부에서 찾은 근거 <small>키워드 기반</small></h3></div>
-      ${axis('공동체')}<p class="help">아래 <b>공동체 역량 근거</b> 칸에 상담자의 평가를 쓰세요.</p></div>`;
+function jinroRecordCards() {
+  if (!J.picked) return `<div class="card jinro"><div class="card-head"><h3>진로설계 자료 <small>불러오면 여기에 표시됩니다</small></h3></div>
+    <p class="help">STEP 01에서 학생을 불러오면 편제·선택 과목, 교과 성적, 학생부 근거가 이 자리에 나옵니다.</p></div>`
+    + steps[2].fields.map(x => `<div class="card">${fieldHTML(x, data.values[x.id] || '', 'values.' + x.id)}</div>`).join('');
+  return curriculumCard() + learningCard() + careerCard() + communityCard()
+    + `<div class="card jinro"><div class="card-head"><h3>강점·한계 및 경쟁력 판단 <small>상담자가 씁니다</small></h3></div>
+        ${writeBox('recordJudgment')}</div>`;
 }
 
 function missing() {
@@ -221,7 +312,9 @@ function render() {
   $('#stepNumber').textContent = `STEP ${pad(current + 1)} / ${steps.length}`;
   $('#stepTitle').textContent = s.title;
   $('#stepHelp').textContent = s.help;
-  $('#fields').innerHTML = `<div class="fields">${s.fields.map(x => fieldHTML(x, data.values[x.id] || '', 'values.' + x.id)).join('')}</div>`;
+  /* 학생부 경쟁력(STEP 03)은 항목별 카드 안에 작성 칸을 두므로 아래 묶음은 비운다 */
+  $('#fields').innerHTML = current === 2 ? ''
+    : `<div class="fields">${s.fields.map(x => fieldHTML(x, data.values[x.id] || '', 'values.' + x.id)).join('')}</div>`;
   /* 불러온 '사실' 카드는 입력 칸 위(extrasTop)에, 반복 항목은 아래(extras)에 둔다 */
   let top = '', extra = '';
   if (current === 0) top = jinroImportCard();

@@ -182,3 +182,27 @@ table.gtable.detail td i{display:inline-block;width:7px;height:7px;border-radius
 .legends .lg{font-size:.74rem;color:#5a6b7d;font-weight:700;display:inline-flex;align-items:center;gap:5px}
 .legends .lg i{width:9px;height:9px;border-radius:50%;display:inline-block}
 @media(min-width:1700px){.rankwrap{grid-template-columns:minmax(0,1.7fr) minmax(0,270px)}}
+
+/* ---------- 학생부 경쟁력 — 항목마다 근거 → 자동 분석 → 작성 칸 ---------- */
+.writein{margin-top:16px;border-top:1px dashed #cfc3ea;padding-top:14px}
+.writein .field{font-size:.82rem}
+.writein textarea{min-height:110px;background:#fff}
+.autobox{margin-top:14px;background:#fff;border:1px solid #e3dcf1;border-radius:9px;padding:12px 14px}
+.autobox h4{margin:0 0 6px;font-size:.8rem;color:#44576d;display:flex;align-items:center;gap:8px}
+.autobox h4 .lv{font-size:.68rem;font-weight:700;color:#6b4fbb;background:#f1ecfb;border-radius:9px;padding:2px 8px}
+.autobox ul{margin:4px 0 8px;padding-left:18px}
+.autobox li{font-size:.8rem;line-height:1.75;color:#45586c;margin:3px 0}
+.autobox .note{font-size:.7rem;color:#8a97a8;margin:6px 0 0}
+table.gtable.ev{white-space:normal}
+table.gtable.ev th{text-align:left;white-space:nowrap;vertical-align:top;min-width:92px}
+table.gtable.ev th small{display:block;font-weight:400;font-size:.68rem;color:#7b8899}
+table.gtable.ev td{text-align:left;vertical-align:top}
+table.gtable.ev td.q{line-height:1.7;color:#3d5168;min-width:260px}
+table.gtable.ev td.kw span{display:inline-block;background:#f1ecfb;color:#5b3fa8;border-radius:9px;padding:1px 7px;font-size:.68rem;font-weight:700;margin:1px 2px 1px 0}
+ol.rep{margin:12px 0 0;padding-left:0;list-style:none;counter-reset:rep}
+ol.rep li{counter-increment:rep;background:#fff;border:1px solid #e3dcf1;border-radius:9px;padding:11px 13px 11px 40px;position:relative;margin-bottom:8px}
+ol.rep li::before{content:counter(rep);position:absolute;left:12px;top:11px;width:20px;height:20px;border-radius:50%;background:#6b4fbb;color:#fff;font-size:.72rem;font-weight:700;display:grid;place-items:center}
+ol.rep .where{font-size:.72rem;font-weight:700;color:#6b4fbb;margin-bottom:5px}
+ol.rep .kw1{display:inline-block;background:#f1f5f9;color:#5a6b7d;border-radius:8px;padding:1px 6px;font-size:.66rem;margin-left:4px}
+ol.rep .q{margin:0;font-size:.82rem;line-height:1.75;color:#2f4257}
+.card.jinro .empty{font-size:.82rem;color:#7b8899;line-height:1.7;background:#fff;border:1px dashed #d9d0ea;border-radius:8px;padding:11px 13px;margin:10px 0}

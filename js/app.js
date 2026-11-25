@@ -1,10 +1,10 @@
-import { CONFIG } from './config.js?v=3.3';
-import { createStorage } from './storage/index.js?v=3.3';
-import { overall, MAIN_AREAS } from './courses.js?v=3.3';
-import { steps, riskFields, feedbackFields, field, blank, validateRecord, SCHEMA_VERSION } from './schema.js?v=3.3';
+import { CONFIG } from './config.js?v=3.4';
+import { createStorage } from './storage/index.js?v=3.4';
+import { overall, MAIN_AREAS } from './courses.js?v=3.4';
+import { steps, riskFields, feedbackFields, field, blank, validateRecord, SCHEMA_VERSION } from './schema.js?v=3.4';
 import { jinroProfiles, jinroProfile, jinroAvailable, schoolSubjects, programSubjects,
-  jinroDiagnosis, jinroGrades, gradeSummary, gradeCourses, jinroCourses, mapSchoolType, JINRO_URL } from './jinro-link.js?v=3.3';
-import { buildAnalysis, analysisHTML, headline } from './gyogwa-analysis.js?v=3.3';
+  jinroDiagnosis, jinroGrades, gradeSummary, gradeCourses, jinroCourses, mapSchoolType, JINRO_URL } from './jinro-link.js?v=3.4';
+import { buildAnalysis, analysisHTML, headline } from './gyogwa-analysis.js?v=3.4';
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -20,7 +20,7 @@ let saved = [], activeNumber = null, activeRevision = null, info = null, ready =
    옮기는 것은 "사실"뿐이다 — 이름·고교·희망 학과·편제·선택 과목·교과 성적,
    그리고 자동 진단이 찾은 근거 '문장'. 역량 판단과 교과·학생부 판단은 옮기지 않는다. */
 const J = { ok: false, loading: true, picked: '', school: null, program: null,
-  grades: [], summary: null, analysis: null, diag: null, note: '',
+  grades: [], summary: null, analysis: null, diag: null, note: '', outside: [],
   /* 교과 경쟁력 화면 상태 — 어느 탭, 어떤 값으로 볼지 */
   view: { tab: '1', metric: 'rank' } };
 
@@ -45,7 +45,7 @@ async function applyJinro(key) {
   const p = jinroProfile(key);
   if (!p) { toast('그 설계를 찾지 못했습니다.'); return; }
   const report = { filled: [], skipped: [], courses: 0 };
-  J.picked = key; J.school = null; J.program = null;
+  J.picked = key; J.school = null; J.program = null; J.outside = [];
 
   if (p.schoolPath) { try { J.school = await schoolSubjects(p.schoolPath, p.trackId || ''); } catch { J.school = null; } }
   if (p.programId) { try { J.program = await programSubjects(p.programId); } catch { J.program = null; } }
@@ -68,10 +68,14 @@ async function applyJinro(key) {
 
   if (J.school) {
     const picked = [...new Set([...(p.takenSubjects || []), ...(p.chosenSubjects || []), ...(p.manualSubjects || [])])].filter(Boolean);
+    /* 학교 편제에 없는데 이수한 과목 — 공동교육과정·온라인학교·전문교과.
+       학생부에서 가장 크게 읽히는 부분이라 따로 떼어 보여 준다. */
+    J.outside = (p.manualSubjects || []).filter(Boolean);
     const lines = [
       `학교: ${J.school.name}${J.school.schoolType ? ` (${J.school.schoolType})` : ''}${track ? ` · ${track.label}` : ''}`,
       `개설 ${(J.school.subjects || []).length}과목 · 설계에서 고른 과목 ${picked.length}개`,
       picked.length ? picked.join(', ') : '',
+      J.outside.length ? `학교 편제 밖 이수(공동교육과정·전문교과 등) ${J.outside.length}과목: ${J.outside.join(', ')}` : '',
     ].filter(Boolean);
     if (J.program) {
       const core = J.program.core || [], have = new Set(picked);
@@ -255,6 +259,10 @@ function curriculumCard() {
     ${J.school ? `<p class="help"><b>${esc(J.school.name)}</b> · 개설 ${sub.length}과목
       (${esc(Object.entries(byCat).map(([k, v]) => `${k} ${v}`).join(' · '))})</p>` : noEv('학교 편제를 불러오지 못했습니다.')}
     ${J.program ? `<p class="help">희망 <b>${esc(J.program.name)}</b> · 핵심 ${(J.program.core || []).length}과목 / 권장 ${(J.program.recommended || []).length}과목</p>` : ''}
+    ${(J.outside || []).length ? `<div class="autobox"><h4>학교 편제 밖에서 이수한 과목 <span class="lv">${J.outside.length}과목</span></h4>
+        <p class="help">${esc(J.outside.join(', '))}</p>
+        <p class="note">공동교육과정·온라인학교·전문교과로 이수한 과목입니다. 학교가 열어 주지 않은 과목을 스스로 찾아 들은 이력이라
+          학업태도·진로역량에서 크게 읽힙니다. <b>무엇을 배웠고 그 뒤 탐구가 어떻게 달라졌는지</b>를 아래 칸에 적어 두세요.</p></div>` : ''}
     ${writeBox('curriculum')}</div>`;
 }
 

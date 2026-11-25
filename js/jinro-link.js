@@ -108,11 +108,15 @@ export function jinroCourses(profile, school) {
   if (!profile || !school) return [];
   const meta = new Map((school.subjects || []).map(s => [s.subject, s]));
   const names = [...new Set([...(profile.takenSubjects || []), ...(profile.chosenSubjects || []), ...(profile.manualSubjects || [])])];
+  const outside = new Set((profile.manualSubjects || []).filter(Boolean));
   return names.filter(Boolean).map(name => {
     const m = meta.get(name) || {};
     const g = (m.grades || []).filter(x => x === 2 || x === 3);
     return { year: g.length ? Math.min(...g) : 1, semester: 1, area: AREA_MAP[m.area] || '기타',
-      name, units: Number(m.credits) || 0, kind: KIND_MAP[m.category] || null,
+      /* 학교 편제에 없는 과목은 공동교육과정·전문교과로 이수한 것이다 */
+      name: outside.has(name) ? name : name,
+      outside: outside.has(name),
+      units: Number(m.credits) || 0, kind: KIND_MAP[m.category] || (outside.has(name) ? '전문교과' : null),
       rank: null, rawScore: null, mean: null, stdev: null, achievement: null,
       distA: null, distB: null, distC: null, studentCount: null };
   });
